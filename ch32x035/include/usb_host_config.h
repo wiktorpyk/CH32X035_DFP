@@ -1,12 +1,3 @@
-/********************************** (C) COPYRIGHT  *******************************
- * File Name          : usb_host_config.h
- * Author             : merged-template
- * Version            : V1.0.0
- * Date               : 2025/10/03
- * Description        : Unified USB host configuration template used by the
- *                      merged host implementation in result/.
- ********************************************************************************/
-
 #ifndef __USB_HOST_CONFIG_H
 #define __USB_HOST_CONFIG_H
 
@@ -14,13 +5,8 @@
 extern "C" {
 #endif
 
-/* Project headers expected to be available in the SDK */
 #include <ch32x035_usb.h>
 #include <ch32x035_usbfs_host.h>
-
-/* Lightweight fallbacks for common C headers used in samples */
-#include <string.h>
-#include <stdio.h>
 
 /* Debug macro (enable to print debug messages) */
 #ifndef DEF_DEBUG_PRINTF

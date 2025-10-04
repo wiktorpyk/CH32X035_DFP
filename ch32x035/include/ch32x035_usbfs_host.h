@@ -1,16 +1,3 @@
-/********************************** (C) COPYRIGHT *******************************
-* File Name          : ch32x035_usbfs_host.h
-* Author             : WCH
-* Version            : V1.0.0
-* Date               : 2023/04/06
-* Description        : USBFS full speed host header file
-*********************************************************************************
-* Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
-* Attention: This software (modified or not) and binary are used for 
-* microcontroller manufactured by Nanjing Qinheng Microelectronics.
-*******************************************************************************/
-
-
 #ifndef __CH32X035_USBFS_HOST_H__
 #define __CH32X035_USBFS_HOST_H__
 
@@ -98,8 +85,6 @@ extern __attribute__((aligned(4))) uint8_t  TxBuffer[ ];           // OUT, must 
 #define USBFS_TX_Buf  TxBuffer
 
 /*******************************************************************************/
-/* Function Declaration */
-extern void USBFS_RCC_Init( void );
 extern void USBFS_Host_Init( FunctionalState sta , PWR_VDD VDD_Voltage);
 extern uint8_t USBFSH_CheckRootHubPortStatus( uint8_t dev_sta );
 extern uint8_t USBFSH_CheckRootHubPortEnable( void );

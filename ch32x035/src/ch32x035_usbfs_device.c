@@ -30,16 +30,8 @@ volatile uint8_t  USBFS_DevAddr;
 volatile uint8_t  USBFS_DevSleepStatus;
 volatile uint8_t  USBFS_DevEnumStatus;
 
-/* HID Class Command */
-volatile uint8_t  USBFS_HidIdle;
-volatile uint8_t  USBFS_HidProtocol;
-volatile uint16_t Hid_Report_Ptr;
-
-/* HID Report Buffer */
-__attribute__ ((aligned(4))) uint8_t  HID_Report_Buffer[DEF_USBD_FS_PACK_SIZE];
-
 /* Endpoint Buffer */
-__attribute__ ((aligned(4))) uint8_t USBFS_EP0_4Buf[ DEF_USBD_UEP0_SIZE*3 ];
+__attribute__ ((aligned(4))) uint8_t USBFS_EP0_4Buf[ DEF_USBD_UEP0_SIZE ];
 __attribute__ ((aligned(4))) uint8_t USBFS_EP1_Buf[ DEF_USBD_ENDP1_SIZE ];
 __attribute__ ((aligned(4))) uint8_t USBFS_EP2_Buf[ DEF_USBD_ENDP2_SIZE ];
 __attribute__ ((aligned(4))) uint8_t USBFS_EP3_Buf[ DEF_USBD_ENDP3_SIZE ];
@@ -50,7 +42,7 @@ volatile uint8_t  USBFS_Endp_Busy[ DEF_UEP_NUM ];
 
 /******************************************************************************/
 /* Interrupt Service Routine Declaration*/
-void USBFS_IRQHandler(void) __attribute__((interrupt("WCH-Interrupt-fast")));
+void USBFS_IRQHandler(void) __attribute__((interrupt));
 
 
 /*********************************************************************
@@ -76,30 +68,30 @@ void USBFS_RCC_Init(void)
 void USBFS_Device_Endp_Init( void )
 {
 
-    USBFSD->UEP4_1_MOD = USBFS_UEP1_TX_EN|USBFS_UEP4_TX_EN|USBFS_UEP4_RX_EN;
+    USBFSD->UEP4_1_MOD = USBFS_UEP1_TX_EN;
     USBFSD->UEP2_3_MOD = USBFS_UEP2_RX_EN|USBFS_UEP3_TX_EN;
 
     USBFSD->UEP0_DMA = (uint32_t)USBFS_EP0_4Buf;
-
     USBFSD->UEP1_DMA = (uint32_t)USBFS_EP1_Buf;
     USBFSD->UEP2_DMA = (uint32_t)(uint8_t *)&UART2_Tx_Buf[ 0 ];
     USBFSD->UEP3_DMA = (uint32_t)(uint8_t *)&USBFS_EP3_Buf[ 0 ];
 
     USBFSD->UEP0_CTRL_H = USBFS_UEP_R_RES_ACK | USBFS_UEP_T_RES_NAK;
     USBFSD->UEP2_CTRL_H = USBFS_UEP_R_RES_ACK;
-    USBFSD->UEP4_CTRL_H = USBFS_UEP_R_RES_ACK | USBFS_UEP_T_RES_NAK;
 
     USBFSD->UEP1_TX_LEN = 0;
     USBFSD->UEP3_TX_LEN = 0;
 
     USBFSD->UEP1_CTRL_H = USBFS_UEP_T_RES_NAK;
     USBFSD->UEP3_CTRL_H = USBFS_UEP_T_RES_NAK;
+
     /* Clear End-points Busy Status */
     for(uint8_t i=0; i<DEF_UEP_NUM; i++ )
     {
         USBFS_Endp_Busy[ i ] = 0;
     }
 }
+
 
 /*********************************************************************
  * @fn      GPIO_USB_INIT
@@ -353,8 +345,9 @@ uint8_t USBFS_Endp_DataUp(uint8_t endp, uint8_t *pbuf, uint16_t len, uint8_t mod
  */
 void USBFS_IRQHandler( void )
 {
+
     uint8_t  intflag, intst, errflag;
-    uint16_t len, i;
+    uint16_t len;
     uint32_t baudrate;
 
     intflag = USBFSD->INT_FG;
@@ -417,13 +410,6 @@ void USBFS_IRQHandler( void )
                         Uart.USB_Up_IngFlag = 0x00;
                         break;
 
-                    /* end-point 4 data in interrupt */
-                    case ( USBFS_UIS_TOKEN_IN | DEF_UEP4 ):
-                        USBFSD->UEP4_CTRL_H ^= USBFS_UEP_T_TOG;
-                        USBFSD->UEP4_CTRL_H = (USBFSD->UEP4_CTRL_H & ~USBFS_UEP_T_RES_MASK) | USBFS_UEP_T_RES_NAK;
-                        USBFS_Endp_Busy[ DEF_UEP4 ] = 0;
-                        break;
-
                     default :
                         break;
                 }
@@ -460,23 +446,13 @@ void USBFS_IRQHandler( void )
                                       Uart.Com_Cfg[ 6 ] = USBFS_EP0_4Buf[ 6 ];
                                       Uart.Com_Cfg[ 7 ] = DEF_UARTx_RX_TIMEOUT;
 
-                                      /* Save the baud rate of the current serial port */
                                       baudrate = USBFS_EP0_4Buf[ 0 ];
                                       baudrate += ((uint32_t)USBFS_EP0_4Buf[ 1 ] << 8 );
                                       baudrate += ((uint32_t)USBFS_EP0_4Buf[ 2 ] << 16 );
                                       baudrate += ((uint32_t)USBFS_EP0_4Buf[ 3 ] << 24 );
                                       Uart.Com_Cfg[ 7 ] = Uart.Rx_TimeOutMax;
 
-                                      /* UART initialization operation */
                                       UART2_USB_Init( );
-                                 }
-                                 else if( USBFS_SetupReqCode == HID_SET_REPORT )
-                                 {
-                                     memcpy(&HID_Report_Buffer[Hid_Report_Ptr],USBFS_EP0_4Buf,len);
-                                     USBFS_SetupReqLen -= len;
-                                     Hid_Report_Ptr += len;
-                                     USBFSD->UEP0_CTRL_H ^= USBFS_UEP_R_TOG;
-                                     USBFSD->UEP0_CTRL_H = (USBFSD->UEP0_CTRL_H & USBFS_UEP_R_RES_MASK) | USBFS_UEP_R_RES_ACK;
                                  }
                             }
                             else
@@ -492,10 +468,9 @@ void USBFS_IRQHandler( void )
                         }
                         break;
 
-                    /* end-point 2 data out interrupt */
+                    /* end-point 1 data out interrupt */
                     case USBFS_UIS_TOKEN_OUT | DEF_UEP2:
                         USBFSD->UEP2_CTRL_H ^= USBFS_UEP_R_TOG;
-
                         Uart.Tx_PackLen[ Uart.Tx_LoadNum ] = USBFSD->RX_LEN;
                         Uart.Tx_LoadNum++;
                         USBFSD->UEP2_DMA = (uint32_t)(uint8_t *)&UART2_Tx_Buf[ ( Uart.Tx_LoadNum * DEF_USB_FS_PACK_LEN ) ];
@@ -505,27 +480,12 @@ void USBFS_IRQHandler( void )
                             USBFSD->UEP2_DMA = (uint32_t)(uint8_t *)&UART2_Tx_Buf[ 0 ];
                         }
                         Uart.Tx_RemainNum++;
-
                         if( Uart.Tx_RemainNum >= ( DEF_UARTx_TX_BUF_NUM_MAX - 2 ) )
                         {
                             USBFSD->UEP2_CTRL_H &= ~USBFS_UEP_R_RES_MASK;
                             USBFSD->UEP2_CTRL_H |= USBFS_UEP_R_RES_NAK;
                             Uart.USB_Down_StopFlag = 0x01;
                         }
-                        break;
-
-                        /* end-point 4 data out interrupt */
-                    case USBFS_UIS_TOKEN_OUT | DEF_UEP4:
-                          USBFSD->UEP4_CTRL_H ^= USBFS_UEP_R_TOG;
-                          /* Reverse the data and re-upload */
-                          len = USBFSD->RX_LEN;
-                          for( i = 0; i < len; i++ )
-                          {
-                              USBFS_EP0_4Buf[ i + 2*DEF_USBD_UEP0_SIZE ] = ~USBFS_EP0_4Buf[ i + DEF_USBD_UEP0_SIZE];
-                          }
-                          USBFSD->UEP4_TX_LEN  = len;
-                          USBFSD->UEP4_CTRL_H &= ~USBFS_UEP_T_RES_MASK;
-                          USBFSD->UEP4_CTRL_H |= USBFS_UEP_T_RES_ACK;
                         break;
 
                     default:
@@ -567,70 +527,6 @@ void USBFS_IRQHandler( void )
                             case CDC_SEND_BREAK:
                                 break;
 
-                            case HID_SET_REPORT:                            /* 0x09: SET_REPORT */
-                                 Hid_Report_Ptr = 0;
-                                 break;
-
-                            case HID_GET_REPORT:                            /* 0x01: GET_REPORT */
-                                if( USBFS_SetupReqIndex == 0x00 )
-                                {
-                                    Hid_Report_Ptr = 0;
-                                    len = (USBFS_SetupReqLen >= DEF_USBD_UEP0_SIZE) ? DEF_USBD_UEP0_SIZE : USBFS_SetupReqLen;
-                                    memcpy( USBFS_EP0_4Buf, &HID_Report_Buffer[Hid_Report_Ptr], len );
-                                    Hid_Report_Ptr += len;
-                                }
-                                else
-                                {
-                                    errflag = 0xFF;
-                                }
-                                break;
-
-                            case HID_SET_IDLE:                              /* 0x0A: SET_IDLE */
-                                if( USBFS_SetupReqIndex == 0x00 )
-                                {
-                                    USBFS_HidIdle = (uint8_t)( USBFS_SetupReqValue >> 8 );
-                                }
-                                else
-                                {
-                                    errflag = 0xFF;
-                                }
-                                break;
-
-                            case HID_SET_PROTOCOL:                          /* 0x0B: SET_PROTOCOL */
-                                if( USBFS_SetupReqIndex == 0x00 )
-                                {
-                                    USBFS_HidProtocol = (uint8_t)USBFS_SetupReqValue;
-                                }
-                                else
-                                {
-                                    errflag = 0xFF;
-                                }
-                                break;
-
-                            case HID_GET_IDLE:                              /* 0x02: GET_IDLE */
-                                if( USBFS_SetupReqIndex == 0x00 )
-                                {
-                                    USBFS_EP0_4Buf[ 0 ] = USBFS_HidIdle;
-                                    len = 1;
-                                }
-                                else
-                                {
-                                    errflag = 0xFF;
-                                }
-                                break;
-
-                             case HID_GET_PROTOCOL:                          /* 0x03: GET_PROTOCOL */
-                                 if( USBFS_SetupReqIndex == 0x00 )
-                                 {
-                                     USBFS_EP0_4Buf[ 0 ] = USBFS_HidProtocol;
-                                     len = 1;
-                                 }
-                                 else
-                                 {
-                                     errflag = 0xFF;
-                                 }
-                                 break;
-
                             default:
                                 errflag = 0xff;
                                 break;
@@ -669,25 +565,6 @@ void USBFS_IRQHandler( void )
                                 case USB_DESCR_TYP_CONFIG:
                                     pUSBFS_Descr = MyCfgDescr;
                                     len = DEF_USBD_CONFIG_DESC_LEN;
-                                    break;
-
-                                /* get hid report descriptor */
-                                case USB_DESCR_TYP_REPORT:
-                                    pUSBFS_Descr = MyHIDReportDesc;
-                                    len = DEF_USBD_REPORT_DESC_LEN;
-                                    break;
-
-                                /* get hid descriptor */
-                                case USB_DESCR_TYP_HID:
-                                    if( USBFS_SetupReqIndex == 0x02 )
-                                    {
-                                        pUSBFS_Descr = &MyCfgDescr[ 84 ];
-                                        len = 9;
-                                    }
-                                    else
-                                    {
-                                        errflag = 0xFF;
-                                    }
                                     break;
 
                                 /* get usb string descriptor */
@@ -792,16 +669,6 @@ void USBFS_IRQHandler( void )
                                             USBFSD->UEP3_CTRL_H = USBFS_UEP_T_RES_NAK;
                                             break;
 
-                                        case ( DEF_UEP_IN | DEF_UEP4 ):
-                                            /* Set End-point 4 IN NAK */
-                                            USBFSD->UEP4_CTRL_H = USBFS_UEP_T_RES_NAK;
-                                            break;
-
-                                        case ( DEF_UEP_OUT | DEF_UEP4 ):
-                                            /* Set End-point 4 OUT ACK */
-                                            USBFSD->UEP4_CTRL_H = USBFS_UEP_R_RES_ACK;
-                                            break;
-
                                         default:
                                             errflag = 0xFF;
                                             break;
@@ -863,16 +730,6 @@ void USBFS_IRQHandler( void )
                                             USBFSD->UEP3_CTRL_H = ( USBFSD->UEP3_CTRL_H & ~USBFS_UEP_T_RES_MASK ) | USBFS_UEP_T_RES_STALL;
                                             break;
 
-                                        case ( DEF_UEP_IN | DEF_UEP4 ):
-                                            /* Set End-point 4 IN STALL */
-                                            USBFSD->UEP4_CTRL_H = ( USBFSD->UEP4_CTRL_H & ~USBFS_UEP_T_RES_MASK ) | USBFS_UEP_T_RES_STALL;
-                                            break;
-
-                                        case ( DEF_UEP_OUT | DEF_UEP4 ):
-                                            /* Set End-point 4 OUT STALL */
-                                            USBFSD->UEP4_CTRL_H = ( USBFSD->UEP4_CTRL_H & ~USBFS_UEP_R_RES_MASK ) | USBFS_UEP_R_RES_STALL;
-                                            break;
-
                                         default:
                                             errflag = 0xFF;
                                             break;
@@ -932,20 +789,6 @@ void USBFS_IRQHandler( void )
 
                                     case ( DEF_UEP_IN | DEF_UEP3 ):
                                         if( ( (USBFSD->UEP3_CTRL_H) & USBFS_UEP_T_RES_MASK ) == USBFS_UEP_T_RES_STALL )
-                                        {
-                                            USBFS_EP0_4Buf[ 0 ] = 0x01;
-                                        }
-                                        break;
-
-                                    case ( DEF_UEP_IN | DEF_UEP4 ):
-                                        if( ( (USBFSD->UEP4_CTRL_H) & USBFS_UEP_T_RES_MASK ) == USBFS_UEP_T_RES_STALL )
-                                        {
-                                            USBFS_EP0_4Buf[ 0 ] = 0x01;
-                                        }
-                                        break;
-
-                                    case ( DEF_UEP_OUT | DEF_UEP4 ):
-                                        if( ( (USBFSD->UEP4_CTRL_H) & USBFS_UEP_R_RES_MASK ) == USBFS_UEP_R_RES_STALL )
                                         {
                                             USBFS_EP0_4Buf[ 0 ] = 0x01;
                                         }
@@ -1051,4 +894,5 @@ void USBFS_IRQHandler( void )
         /* other interrupts */
         USBFSD->INT_FG = intflag;
     }
+
 }

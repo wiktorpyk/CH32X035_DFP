@@ -26,7 +26,7 @@ int main(void)
     while(1)
     {
         /* Your application code here */
-        printf("Counter: %lu\r\n", counter++);
+        printf("Counter: %u\r\n", counter++);
         
         /* Process USB CDC output (optional but recommended) */
         USB_CDC_Process();

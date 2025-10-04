@@ -1,19 +1,7 @@
-/********************************** (C) COPYRIGHT *******************************
-* File Name          : ch32x035_usbfs_host.c
-* Author             : WCH
-* Version            : V1.0.0
-* Date               : 2023/04/06
-* Description        : USB full-speed port host operation functions.
-*********************************************************************************
-* Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
-* Attention: This software (modified or not) and binary are used for 
-* microcontroller manufactured by Nanjing Qinheng Microelectronics.
-*******************************************************************************/
-
-
-/*******************************************************************************/
 /* Header File */
 #include "usb_host_config.h"
+#include <string.h>
+#include <stddef.h>
 
  /* USB Endpoint0 Size */
  #ifndef DEFAULT_ENDP0_SIZE
@@ -34,7 +22,7 @@ __attribute__((aligned(4))) uint8_t  USBFS_TX_Buf[ USBFS_MAX_PACKET_SIZE ];     
  *
  * @return  none
  */
-void USBFS_RCC_Init( void )
+static void USBFS_RCC_Init( void )
 {
     RCC_APB2PeriphClockCmd( RCC_APB2Periph_AFIO, ENABLE );
     RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBFS, ENABLE );
@@ -47,7 +35,7 @@ void USBFS_RCC_Init( void )
  *
  * @return  none
  */
-void GPIO_USB_INIT(void)
+static void GPIO_USB_INIT(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure = {0};
 

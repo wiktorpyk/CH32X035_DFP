@@ -104,5 +104,5 @@ extern uint8_t USBFS_Endp_DataUp(uint8_t endp, uint8_t *pbuf, uint16_t len, uint
 #endif
 
 
-#endif /* USER_CH32X035_USB_DEVICE_H_ */
+#endif /* __CH32X035_USBFS_DEVICE_H_ */
 
