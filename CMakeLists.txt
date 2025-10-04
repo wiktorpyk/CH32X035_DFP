@@ -39,6 +39,11 @@ file(GLOB_RECURSE MCU_C_SOURCES
   # ${CMAKE_SOURCE_DIR}/ch32x035/src/Udisk_Lib/*.c
 )
 
+# If the user didn't provide SOURCES via -DSOURCES=..., default to src/main.c
+if(NOT DEFINED SOURCES OR "${SOURCES}" STREQUAL "")
+  set(SOURCES "${CMAKE_SOURCE_DIR}/src/main.c")
+endif()
+
 set(SOURCES ${SOURCES} "${CMAKE_SOURCE_DIR}/ch32x035/startup_ch32x035.S")
 
 add_executable(ch32x035f8u6.elf ${MCU_C_SOURCES} ${SOURCES})
